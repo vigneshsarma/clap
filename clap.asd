@@ -3,7 +3,7 @@
 |#
 
 (in-package :cl-user)
-(defpackage clap.cl-asd
+(defpackage clap-asd
   (:use :cl :asdf))
 (in-package :clap-asd)
 
