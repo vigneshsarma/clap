@@ -6,19 +6,15 @@
 (in-package :clap-ql)
 
 (defparameter cli-options
-  `(((:id :port)
-     (:short-opt "-p")
-     (:long-opt "--port" "Port Number")
+  `(((:short-opt "-p")
+     (:long-opt "--port")
      (:required t)
-     (:default 80)
-     (:parse-fn ,(lambda (arg) (princ arg)))
-     (:validate-fn ,(lambda (arg) (< 0 arg 60000))))
+     (:default 80))
     ((:short-opt "-v")
      (:required t)
      (:id :verbosity)
      (:default 0))
-    ((:id :help)
-     (:short-opt "-h")
+    ((:short-opt "-h")
      (:long-opt "--help"))))
 
 (parse-opts cli-options)

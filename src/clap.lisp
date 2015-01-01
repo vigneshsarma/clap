@@ -75,6 +75,9 @@
   (format nil "~a" specs))
 
 (defun default-option-map (specs)
+  "Go through each spec and find the arguments that have a
+default value. Use it to create a dictionary with spec id
+as key and  default value."
   (reduce (lambda (m spec)
             (if (assoc :default spec)
                 (acons  (second (assoc :id spec))
@@ -82,26 +85,49 @@
                   m))
           specs :initial-value nil))
 
-(define-condition missing-required-error (error)
-  ((opt :initarg :opt :reader opt)
-   (example-required :initarg :example-required :reader example-required))
+(define-condition clap-error (error)
+  ((opt :initarg :opt :reader opt))
+  (:report "Some error in argument."))
+
+(define-condition clap-no-id-for-spec (clap-error)
+  (:report (lambda (condition stream)
+             (format stream "There should be either :id or :long-opt in: ~a"
+                     (opt condition)))))
+
+(define-condition clap-parse-error (clap-error)
+  ((optarg :initarg :optarg :reader optarg)
+   (err-condition :initarg err-condition :reader err-condition))
+  (:report (lambda (condition stream)
+             (format stream "Error while parsing option ~a ~a: ~a"
+                     (opt condition) (optarg condition) (err-condition condition)))))
+
+(define-condition missing-required-error (clap-error)
+  ((example-required :initarg :example-required :reader example-required))
   (:report (lambda (condition stream)
              (format stream "Missing required argument for ~a ~a"
                      (opt condition) (example-required condition)))))
+
+;; TODO: add call to custom validation function.
+(defun parse-value (value spec opt optarg)
+  (let ((parse-fn (second (assoc :parse-fn spec))))
+    (if parse-fn
+        (handler-case (apply #'parse-fn (list value))
+          (error (e)
+            (error 'clap-parse-error :opt opt :optarg optarg :err-condition e)))
+        value)))
+
+(defun parse-optarg (spec opt optarg)
+  "Given a spec, option and option-argument. decide what its value should be."
+  (let ((required (second (assoc :required spec))))
+    (if (and required (null optarg))
+        (error 'missing-required-error opt required)
+        (parse-value (if required optarg t) spec opt optarg))))
 
 (defun parse-option-tokens (specs tokens &key no-defaults)
   (let ((defaults (default-option-map specs)))
     (labels ((missing-required-error (opt example-required)
                (format nil "Missing required argument for ~a ~a"
                        opt example-required))
-             ;; TODO: do the full implementation.
-             (parse-value (value spec opt optarg)
-               value)
-             (parse-optarg (spec opt optarg)
-               (let ((required (second (assoc :required spec))))
-                 (if (and required (null optarg))
-                     (error 'missing-required-error opt required)
-                     (parse-value (if required optarg t) spec opt optarg))))
              (find-spec (specs opt-type opt)
                (first (remove-if-not (lambda (spec)
                                        (equal opt (second (assoc opt-type spec))))
@@ -112,11 +138,12 @@
                       (opt-type (first item))
                       (opt (second item))
                       (optarg (third item))
-                      (spec (find-spec specs opt-type opt)))
+                      (spec (find-spec specs opt-type opt))
+                      (id (second (assoc :id spec))))
                  (if spec
                      (handler-case (let ((value (parse-optarg spec opt optarg)))
-                                     (list m errors))
-                       (missing-required-error (e)
+                                     (list (acons id value m) errors))
+                       (clap-error (e)
                          (list m (conj errors (format nil "~a" e)))))))))
       (reduce #'reducer tokens :initial-value (list defaults '())))))
 
@@ -131,9 +158,21 @@
                   acc)))
           specs :initial-value '()))
 
+(defun compile-spec (spec)
+  (let* ((long-opt (second (assoc :long-opt spec)))
+         (id (second (assoc :id spec)))
+         (long-opt (when long-opt
+                     (let ((groups (nth-value 1 (cl-ppcre:scan-to-strings
+                                                 "^--(.*)$" long-opt))))
+                       (when groups (elt groups 0))))))
+    (cond ((and (not id) (not long-opt)) (error 'clap-no-id-for-spec spec))
+          ((not id) (conj spec (list :id (intern (string-upcase long-opt)
+                                                 :keyword))))
+          (t spec))))
+
 ;; TODO: Implementation incomplete.
 (defun compile-option-specs (options-specs)
-  options-specs)
+  (mapcar #'compile-spec options-specs))
 
 (defun parse-opts (args option-specs
                    &key in-order no-defaults summary-fn)
