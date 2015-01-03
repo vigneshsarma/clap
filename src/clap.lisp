@@ -1,7 +1,7 @@
 (in-package :cl-user)
 (defpackage clap
   (:use :cl :cl-ppcre)
-  (:export :parse-opts))
+  (:export :parse-opts :get-argv))
 (in-package :clap)
 
 (defun re-matches? (regex string)
@@ -15,6 +15,22 @@
 
 (defun contains? (sequence item)
   (member item sequence :test #'equal))
+
+(defun get-argv ()
+  "Taken from https://github.com/pve1/apply-argv/"
+  ;; Borrowed from command-line-arguments.  Temporary solution.
+  ;; This is not PvE's code.
+  #+sbcl (cdr sb-ext:*posix-argv*)
+  #+clozure (cdr (ccl::command-line-arguments))
+  #+gcl (cdr si:*command-args*)
+  #+ecl (loop for i from 1 below (si:argc) collect (si:argv i))
+  #+cmu (cdr extensions:*command-line-strings*)
+  #+allegro (cdr (sys:command-line-arguments))
+  #+lispworks (cdr sys:*line-arguments-list*)
+  #+clisp ext:*args*
+  #-(or sbcl clozure gcl ecl cmu allegro lispworks clisp)
+  (error "get-argv not supported for your implementation"))
+
 
 (defun tokenize-args (required-set args &key in-order)
   "Reduce arguments sequence into (opt-type opt ?optarg?) lists and a list
