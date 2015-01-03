@@ -148,6 +148,7 @@ as key and  default value."
         (parse-value (if required optarg t) spec opt optarg))))
 
 (defun parse-option-tokens (specs tokens &key no-defaults)
+  "Given specs and tokenized arguments, return options and errors."
   (let ((defaults (default-option-map specs)))
     (labels ((missing-required-error (opt example-required)
                (format nil "Missing required argument for ~a ~a"
@@ -169,8 +170,8 @@ as key and  default value."
                                      (list (acons id value m) errors))
                        (clap-error (e)
                          (list m (conj errors (format nil "~a" e)))))
-                     (list m (append errors (format nil "Unsupported option ~a"
-                                                    opt)))))))
+                     (list m (cons (format nil "Unsupported option ~a"
+                                           opt) errors))))))
       (reduce #'reducer tokens :initial-value (list defaults '())))))
 
 (defun required-arguments (specs)
