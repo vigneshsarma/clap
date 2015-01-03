@@ -90,6 +90,7 @@ as key and  default value."
   (:report "Some error in argument."))
 
 (define-condition clap-no-id-for-spec (clap-error)
+  ()
   (:report (lambda (condition stream)
              (format stream "There should be either :id or :long-opt in: ~a"
                      (opt condition)))))
