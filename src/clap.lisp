@@ -144,7 +144,9 @@ as key and  default value."
                      (handler-case (let ((value (parse-optarg spec opt optarg)))
                                      (list (acons id value m) errors))
                        (clap-error (e)
-                         (list m (conj errors (format nil "~a" e)))))))))
+                         (list m (conj errors (format nil "~a" e)))))
+                     (list m (append errors (format nil "Unsupported option ~a"
+                                                    opt)))))))
       (reduce #'reducer tokens :initial-value (list defaults '())))))
 
 (defun required-arguments (specs)
