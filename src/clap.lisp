@@ -72,7 +72,14 @@
     :assoc-fn :validate-fn :validate-msg))
 
 (defun summarize (specs)
-  (format nil "~a" specs))
+  "Summarize the given specs into humanly readable form."
+  (let ((required-keys '(:short-opt :long-opt :required :default :desc)))
+    (format nil "~{  ~{~6a ~}~%~}"
+            (mapcar (lambda (spec)
+                      (mapcar (lambda (key)
+                                (or (second (assoc key spec)) ""))
+                              required-keys))
+                    specs))))
 
 (defun default-option-map (specs)
   "Go through each spec and find the arguments that have a
