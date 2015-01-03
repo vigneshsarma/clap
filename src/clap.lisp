@@ -185,21 +185,30 @@ as key and  default value."
                   acc)))
           specs :initial-value '()))
 
-(defun compile-spec (spec)
-  (let* ((long-opt (second (assoc :long-opt spec)))
-         (id (second (assoc :id spec)))
-         (long-opt (when long-opt
-                     (let ((groups (nth-value 1 (cl-ppcre:scan-to-strings
-                                                 "^--(.*)$" long-opt))))
-                       (when groups (elt groups 0))))))
-    (cond ((and (not id) (not long-opt)) (error 'clap-no-id-for-spec spec))
-          ((not id) (conj spec (list :id (intern (string-upcase long-opt)
-                                                 :keyword))))
-          (t spec))))
+(defun compile-spec (short-opt long-opt desc
+                     &key id required default parse-fn)
+  (labels ((get-id ()
+             (cond
+               ((and (not id) (not long-opt)) (error 'clap-no-id-for-spec
+                                                     short-opt))
+               ((not id) (when long-opt
+                           (let ((groups (nth-value 1 (cl-ppcre:scan-to-strings
+                                                       "^--(.*)$" long-opt))))
+                             (when groups (intern (string-upcase (elt groups 0))
+                                                  :keyword)))))
+               (t id))))
+    `((:short-opt ,short-opt)
+     (:long-opt ,long-opt)
+     (:desc ,desc)
+     (:id ,(get-id))
+     (:required ,required)
+     (:default ,default)
+     (:parse-fn ,parse-fn))))
 
 ;; TODO: Implementation incomplete.
 (defun compile-option-specs (options-specs)
-  (mapcar #'compile-spec options-specs))
+  (mapcar (lambda (spec) (apply #'compile-spec spec))
+          options-specs))
 
 (defun parse-opts (args option-specs
                    &key in-order no-defaults handler-fn)
