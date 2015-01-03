@@ -202,13 +202,16 @@ as key and  default value."
   (mapcar #'compile-spec options-specs))
 
 (defun parse-opts (args option-specs
-                   &key in-order no-defaults summary-fn)
+                   &key in-order no-defaults handler-fn)
   (let* ((specs (compile-option-specs option-specs))
         (req (required-arguments specs))
         (tokens-&-rest-args (tokenize-args req args :in-order in-order))
         (opts-&-errors (parse-option-tokens specs (first tokens-&-rest-args)
                                             :no-defaults no-defaults)))
-    `((:options ,(first opts-&-errors))
-      (:arguments ,(second tokens-&-rest-args))
-      (:summary ,(summarize specs))
-      (:errors ,(second opts-&-errors)))))
+    (if handler-fn
+        (apply handler-fn `(,(first opts-&-errors) ,(second tokens-&-rest-args)
+                             ,(summarize specs) ,(second opts-&-errors)))
+        `((:options ,(first opts-&-errors))
+          (:arguments ,(second tokens-&-rest-args))
+          (:summary ,(summarize specs))
+          (:errors ,(second opts-&-errors))))))
